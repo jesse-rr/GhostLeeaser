@@ -256,6 +256,44 @@ async function gerarDesculpa(entrada: EntradaGeracao): Promise<string[]> {
 }
 ```
 
+#### Arquivo: [desculpaFallbackService.ts](file:///home/jrr/IdeaProjects/projeto-2-du-dudu-e-edu/src/services/desculpaFallbackService.ts)
+Este serviço de contingência local provê desculpas e respostas pré-definidas (carregadas a partir do arquivo estático `desculpasFallback.json`) caso a API do Gemini esteja inacessível ou sem chave configurada. Ele filtra as desculpas já utilizadas no histórico recente do usuário para evitar repetição direta, garantindo que o aplicativo continue funcional de forma resiliente mesmo offline.
+
+```typescript
+import { TomDesculpa, EntradaRespostaChefe } from "../types/desculpa";
+import desculpasFallback from "../constants/desculpasFallback.json";
+
+type DesculpasPorTom = Record<TomDesculpa, string[]>;
+
+const lista = desculpasFallback as DesculpasPorTom;
+
+function obterDesculpaFallback(tom: TomDesculpa, historicoTextos: string[]): string {
+  const opcoes = lista[tom] ?? lista.formal;
+  const usados = new Set(historicoTextos.map((t) => t.trim().toLowerCase()));
+  const disponiveis = opcoes.filter((texto) => !usados.has(texto.trim().toLowerCase()));
+
+  const pool = disponiveis.length > 0 ? disponiveis : opcoes;
+  const indice = Math.floor(Math.random() * pool.length);
+  return pool[indice];
+}
+
+function obterRespostaChefeFallback(entrada: EntradaRespostaChefe): string {
+  const { desculpa, pergunta } = entrada;
+  const perguntaLimpa = pergunta.trim();
+
+  const modelos: Record<TomDesculpa, string> = {
+    formal: `Em relação à sua pergunta ("${perguntaLimpa}"), confirmo o que relatei antes: ${desculpa.texto}`,
+    casual: `Sobre "${perguntaLimpa}": é isso mesmo. ${desculpa.texto}`,
+    dramatico: `Entendo a preocupação com "${perguntaLimpa}". Reforço que a situação é a mesma que expliquei: ${desculpa.texto}`,
+    engracado: `Boa pergunta. Resumindo: ${desculpa.texto}`,
+  };
+
+  return modelos[desculpa.tom] ?? modelos.formal;
+}
+
+export const desculpaFallbackService = { obterDesculpaFallback, obterRespostaChefeFallback };
+```
+
 #### Arquivo: [useGerarDesculpa.ts](file:///home/jrr/IdeaProjects/projeto-2-du-dudu-e-edu/src/hooks/useGerarDesculpa.ts)
 Este hook consolida os perfis persistidos do usuário (`usePerfil`), a lista histórica de desculpas salvas (`useDesculpas`) e o clima atual para criar a requisição unificada enviada ao Gemini, instanciando uma entidade `Desculpa` com IDs gerados dinamicamente.
 
